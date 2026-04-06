@@ -2,7 +2,8 @@ import { IUserRepository } from '../../domain/repositories/IUserRepository';
 import { ISessionRepository } from '../../domain/repositories/ISessionRepository';
 import { IPasswordHasher } from '../interfaces/IPasswordHasher';
 import { User } from '../../domain/entities/User';
-import { Session } from '../../domain/entities/Session';
+import { UserFactory } from '../../domain/factories/UserFactory';
+import { SessionFactory } from '../../domain/factories/SessionFactory';
 import crypto from 'crypto';
 
 export class AuthService {
@@ -20,7 +21,7 @@ export class AuthService {
 
     const hashed = await this.passwordHasher.hash(passwordRaw);
 
-    const newUser = new User("", email, hashed, new Date());
+    const newUser = UserFactory.create(email, hashed);
     return await this.userRepository.saveUser(newUser);
   }
 
@@ -35,14 +36,10 @@ export class AuthService {
       throw new Error('Invalid authentication credentials.');
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    const sessionToSave = new Session("", user.userId, token, new Date(), expiresAt);
+    const sessionToSave = SessionFactory.create(user.userId);
     await this.sessionRepository.saveSession(sessionToSave);
 
-    return { user, token };
+    return { user, token: sessionToSave.token };
   }
 
   async logout(token: string): Promise<void> {
