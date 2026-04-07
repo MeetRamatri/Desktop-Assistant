@@ -1,4 +1,7 @@
 import express, { Application, Request, Response } from 'express';
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { MongoDatabaseConnection } from './infrastructure/database/MongoDatabaseConnection';
 
 // Clean Architecture Dependency Graph - Auth
