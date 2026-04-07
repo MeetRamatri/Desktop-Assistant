@@ -6,8 +6,20 @@ export class ChatController {
 
   public sendPrompt = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { userId, promptText, conversationId } = req.body;
-      const { conversation, aiResponse } = await this.chatService.sendPrompt(userId, promptText, conversationId);
+      const { userId, promptText, prompt, conversationId } = req.body;
+      const actualPrompt = promptText || prompt;
+
+      if (!actualPrompt) {
+        res.status(400).json({ error: "Missing 'promptText' or 'prompt' in request body" });
+        return;
+      }
+
+      if (!userId) {
+        res.status(400).json({ error: "Missing 'userId' in request body" });
+        return;
+      }
+
+      const { conversation, aiResponse } = await this.chatService.sendPrompt(userId, actualPrompt, conversationId);
 
       res.status(200).json({ conversationId: conversation.conversationId, aiResponse });
     } catch (error: any) {
