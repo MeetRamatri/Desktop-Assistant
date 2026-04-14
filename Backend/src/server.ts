@@ -1,7 +1,7 @@
 import express, { Application, Request, Response } from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
-
 import { MongoDatabaseConnection } from './infrastructure/database/MongoDatabaseConnection';
 
 // Clean Architecture Dependency Graph - Auth
@@ -20,6 +20,7 @@ import { createChatRoutes } from './presentation/routes/ChatRoutes';
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors());
 app.use(express.json());
 const userRepository = new MongoUserRepository();
 const sessionRepository = new MongoSessionRepository();
