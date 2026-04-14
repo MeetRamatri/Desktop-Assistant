@@ -22,10 +22,11 @@ export default function Auth({ onAuthSuccess }) {
         data = await loginUser(email, password);
       } else {
         if (!username) throw new Error('Username is required for registration');
-        data = await registerUser(username, email, password);
+        await registerUser(username, email, password);
+        data = await loginUser(email, password);
       }
       // Re-propagate success to parent
-      onAuthSuccess(data.user);
+      onAuthSuccess({ id: data.userId, email: data.email, username: username || data.email?.split('@')[0] || 'User' });
       
       // Reset form
       setEmail('');

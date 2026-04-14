@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { validateSession, logoutUser } from './api.js';
 import Auth from './pages/Auth.jsx';
+import Chat from './pages/Chat.jsx';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -9,7 +10,7 @@ export default function App() {
   useEffect(() => {
     // Check session on load
     validateSession()
-      .then(data => setUser(data.user))
+      .then(data => setUser({ id: data.userId, email: data.email, username: data.email?.split('@')[0] || 'User' }))
       .catch(() => setUser(null))
       .finally(() => setIsLoading(false));
   }, []);
@@ -39,16 +40,8 @@ export default function App() {
   // If user is authenticated, render the main app layout containing chat or other pages
   if (user) {
     return (
-      <div id="app-container">
-        <div id="chat-view" className="auth-card" style={{ width: '100%', height: 'calc(100vh - 80px)', maxWidth: '900px', display: 'flex', flexDirection: 'column' }}>
-          <div className="chat-header">
-            <h2>Hello, {user.username || 'User'}!</h2>
-            <button className="logout-btn" onClick={handleLogout}>Logout</button>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-            Chat interface will be implemented here...
-          </div>
-        </div>
+      <div id="app-container" className="chat-mode">
+        <Chat user={user} onLogout={handleLogout} />
       </div>
     );
   }
