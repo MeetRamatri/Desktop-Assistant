@@ -26,7 +26,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .bg-glow {
@@ -351,9 +352,25 @@ button.btn-primary:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Layout for full app width in chat mode */
 #app-container.chat-mode {
   max-width: 900px;
   padding: 20px;
   width: 100%;
+  height: 100vh;
 }
+
+/* Markdown Styles */
+.markdown-content {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.markdown-content p { margin-bottom: 0.8em; }
+.markdown-content p:last-child { margin-bottom: 0; }
+.markdown-content pre { background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: 8px; overflow-x: auto; margin-bottom: 0.8em; }
+.markdown-content code { background: rgba(0, 0, 0, 0.2); padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+.markdown-content pre code { background: transparent; padding: 0; }
+.markdown-content ul, .markdown-content ol { padding-left: 20px; margin-bottom: 0.8em; }
+.markdown-content blockquote { border-left: 3px solid var(--primary); padding-left: 10px; color: var(--text-muted); margin-bottom: 0.8em; }
+.markdown-content table { width: 100%; border-collapse: collapse; margin-bottom: 0.8em; }
+.markdown-content th, .markdown-content td { border: 1px solid var(--surface-border); padding: 8px; text-align: left; }
+.markdown-content th { background: rgba(0,0,0,0.1); font-weight: 600; }

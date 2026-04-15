@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { sendPrompt, getChatHistory } from '../api.js';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function Chat({ user, onLogout }) {
   const [messages, setMessages] = useState([]);
@@ -84,7 +86,15 @@ export default function Chat({ user, onLogout }) {
           const isUser = msg.sender === 'user';
           return (
             <div key={index} className={`message-bubble ${isUser ? 'message-user' : 'message-bot'}`} style={{ color: msg.isError ? 'var(--error)' : undefined }}>
-              {msg.content}
+              {isUser ? (
+                msg.content
+              ) : (
+                <div className="markdown-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
           );
         })}
