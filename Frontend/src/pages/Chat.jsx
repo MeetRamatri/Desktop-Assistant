@@ -2,13 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { sendPrompt, getChatHistory } from '../api.js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import {
+  createSpeechRecognition,
+  isSpeechRecognitionSupported,
+  requestMicrophoneAccess,
+} from '../utils/speechRecognition.ts';
 
 export default function Chat({ user, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceError, setVoiceError] = useState('');
+  const [voiceStatus, setVoiceStatus] = useState('');
   const [conversationId, setConversationId] = useState(null);
   const messagesEndRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const transcriptCapturedRef = useRef(false);
+  const recognitionErrorRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -37,16 +49,24 @@ export default function Chat({ user, onLogout }) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isRecording, isTranscribing, voiceError]);
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
 
-    const userMessage = { sender: 'user', content: input.trim(), timestamp: new Date() };
+  const sendMessage = async (messageText) => {
+    const trimmedMessage = messageText.trim();
+    if (!trimmedMessage || isLoading) return;
+
+    const userMessage = { sender: 'user', content: trimmedMessage, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setVoiceError('');
+    setVoiceStatus('');
 
     try {
       const data = await sendPrompt(user.id, userMessage.content, conversationId);
@@ -59,6 +79,89 @@ export default function Chat({ user, onLogout }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const stopRecording = () => {
+    if (!recognitionRef.current) return;
+    setVoiceStatus('Transcribing...');
+    setIsTranscribing(true);
+    recognitionRef.current.stop();
+  };
+
+  const startRecording = async () => {
+    if (isLoading || isTranscribing) return;
+
+    if (!isSpeechRecognitionSupported()) {
+      setVoiceError('Speech recognition is not supported in this app.');
+      return;
+    }
+
+    setVoiceError('');
+    setVoiceStatus('Requesting microphone...');
+
+    try {
+      await requestMicrophoneAccess();
+    } catch (err) {
+      const message = err?.name === 'NotAllowedError'
+        ? 'Microphone permission was denied. Please allow microphone access and try again.'
+        : 'Unable to access your microphone. Please check your device settings.';
+      setVoiceError(message);
+      setVoiceStatus('');
+      return;
+    }
+
+    transcriptCapturedRef.current = false;
+    recognitionErrorRef.current = false;
+    setVoiceStatus('Listening...');
+    setIsRecording(true);
+
+    recognitionRef.current = createSpeechRecognition(
+      async (transcript) => {
+        transcriptCapturedRef.current = true;
+        setIsTranscribing(false);
+        setVoiceStatus('');
+
+        if (!transcript) {
+          setVoiceError('No speech was detected. Please try again.');
+          return;
+        }
+
+        setInput(transcript);
+        await sendMessage(transcript);
+      },
+      (message) => {
+        recognitionErrorRef.current = true;
+        setIsRecording(false);
+        setIsTranscribing(false);
+        setVoiceStatus('');
+        setVoiceError(message);
+      },
+      () => {
+        setIsRecording(false);
+
+        if (!transcriptCapturedRef.current && !recognitionErrorRef.current) {
+          setIsTranscribing(false);
+          setVoiceStatus('');
+          setVoiceError('No speech was detected. Please try again.');
+        }
+      },
+    );
+
+    recognitionRef.current.start();
+  };
+
+  const handleVoiceClick = async () => {
+    if (isRecording) {
+      stopRecording();
+      return;
+    }
+
+    await startRecording();
+  };
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    await sendMessage(input);
   };
 
   return (
@@ -78,7 +181,7 @@ export default function Chat({ user, onLogout }) {
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: 'auto', marginBottom: 'auto' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>✨</div>
             <h3>How can I help you today?</h3>
-            <p style={{ fontSize: '14px', marginTop: '8px' }}>Send a message to start chatting.</p>
+            <p style={{ fontSize: '14px', marginTop: '8px' }}>Send a message or use the microphone to start chatting.</p>
           </div>
         )}
         
@@ -111,22 +214,41 @@ export default function Chat({ user, onLogout }) {
 
       {/* Input */}
       <div className="chat-input-area">
-        <form onSubmit={handleSend} style={{ display: 'flex', width: '100%', gap: '12px' }}>
+        <form onSubmit={handleSend} className="chat-form">
           <input 
             type="text" 
             className="chat-input" 
-            placeholder="Ask me anything..." 
+            placeholder={isRecording ? 'Listening...' : 'Ask me anything...'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={isLoading}
+            disabled={isLoading || isRecording || isTranscribing}
           />
-          <button type="submit" className="send-button" disabled={!input.trim() || isLoading} title="Send Message">
+          <button
+            type="button"
+            className={`voice-button ${isRecording ? 'voice-button-recording' : ''}`}
+            onClick={handleVoiceClick}
+            disabled={isLoading || isTranscribing}
+            title={isRecording ? 'Stop Recording' : 'Start Recording'}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10a7 7 0 0 1-14 0"></path>
+              <line x1="12" y1="19" x2="12" y2="22"></line>
+              <line x1="8" y1="22" x2="16" y2="22"></line>
+            </svg>
+          </button>
+          <button type="submit" className="send-button" disabled={!input.trim() || isLoading || isRecording || isTranscribing} title="Send Message">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>
           </button>
         </form>
+        {(voiceStatus || voiceError) && (
+          <p className={`voice-feedback ${voiceError ? 'voice-feedback-error' : ''}`}>
+            {voiceError || voiceStatus}
+          </p>
+        )}
       </div>
     </div>
   );
