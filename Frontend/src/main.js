@@ -1,11 +1,38 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, desktopCapturer, ipcMain, screen } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import started from 'electron-squirrel-startup';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
+
+ipcMain.handle('capture-screenshot', async () => {
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.size;
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width, height },
+  });
+
+  const primarySource = sources[0];
+  if (!primarySource) {
+    throw new Error('Unable to capture screenshot.');
+  }
+
+  const screenshotBuffer = primarySource.thumbnail.toPNG();
+  const screenshotsDir = app.getPath('pictures');
+  const fileName = `desktop-assistant-${Date.now()}.png`;
+  const filePath = path.join(screenshotsDir, fileName);
+
+  await fs.writeFile(filePath, screenshotBuffer);
+
+  return {
+    fileName,
+    filePath,
+  };
+});
 
 const createWindow = () => {
   // Create the browser window.

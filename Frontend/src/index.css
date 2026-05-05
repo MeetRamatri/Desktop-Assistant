@@ -316,6 +316,31 @@ button.btn-primary:hover {
   transition: all 0.2s ease;
 }
 
+.screenshot-button {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-main);
+  border: 1px solid var(--surface-border);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.screenshot-button:hover:not(:disabled) {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.screenshot-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .send-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

@@ -12,6 +12,9 @@ export default function Chat({ user, onLogout }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+  const [screenshotError, setScreenshotError] = useState('');
+  const [screenshotStatus, setScreenshotStatus] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState('');
@@ -49,7 +52,7 @@ export default function Chat({ user, onLogout }) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, isRecording, isTranscribing, voiceError]);
+  }, [messages, isLoading, isCapturingScreenshot, isRecording, isTranscribing, screenshotError, voiceError]);
 
   useEffect(() => {
     return () => {
@@ -65,6 +68,8 @@ export default function Chat({ user, onLogout }) {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setScreenshotError('');
+    setScreenshotStatus('');
     setVoiceError('');
     setVoiceStatus('');
 
@@ -159,6 +164,31 @@ export default function Chat({ user, onLogout }) {
     await startRecording();
   };
 
+  const handleScreenshotClick = async () => {
+    if (isLoading || isRecording || isTranscribing || isCapturingScreenshot) return;
+
+    if (!window.electronAPI?.captureScreenshot) {
+      setScreenshotError('Screenshot capture is not available in this app.');
+      return;
+    }
+
+    setScreenshotError('');
+    setVoiceError('');
+    setVoiceStatus('');
+    setIsCapturingScreenshot(true);
+    setScreenshotStatus('Capturing screenshot...');
+
+    try {
+      const result = await window.electronAPI.captureScreenshot();
+      setScreenshotStatus(`Screenshot saved as ${result.fileName}`);
+    } catch (err) {
+      setScreenshotError('Unable to capture screenshot. Please try again.');
+      setScreenshotStatus('');
+    } finally {
+      setIsCapturingScreenshot(false);
+    }
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     await sendMessage(input);
@@ -221,13 +251,25 @@ export default function Chat({ user, onLogout }) {
             placeholder={isRecording ? 'Listening...' : 'Ask me anything...'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={isLoading || isRecording || isTranscribing}
+            disabled={isLoading || isCapturingScreenshot || isRecording || isTranscribing}
           />
+          <button
+            type="button"
+            className="screenshot-button"
+            onClick={handleScreenshotClick}
+            disabled={isLoading || isCapturingScreenshot || isRecording || isTranscribing}
+            title="Take Screenshot"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 7h3l2-2h6l2 2h3v12H4z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </button>
           <button
             type="button"
             className={`voice-button ${isRecording ? 'voice-button-recording' : ''}`}
             onClick={handleVoiceClick}
-            disabled={isLoading || isTranscribing}
+            disabled={isLoading || isCapturingScreenshot || isTranscribing}
             title={isRecording ? 'Stop Recording' : 'Start Recording'}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -237,13 +279,18 @@ export default function Chat({ user, onLogout }) {
               <line x1="8" y1="22" x2="16" y2="22"></line>
             </svg>
           </button>
-          <button type="submit" className="send-button" disabled={!input.trim() || isLoading || isRecording || isTranscribing} title="Send Message">
+          <button type="submit" className="send-button" disabled={!input.trim() || isLoading || isCapturingScreenshot || isRecording || isTranscribing} title="Send Message">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
             </svg>
           </button>
         </form>
+        {(screenshotStatus || screenshotError) && (
+          <p className={`voice-feedback ${screenshotError ? 'voice-feedback-error' : ''}`}>
+            {screenshotError || screenshotStatus}
+          </p>
+        )}
         {(voiceStatus || voiceError) && (
           <p className={`voice-feedback ${voiceError ? 'voice-feedback-error' : ''}`}>
             {voiceError || voiceStatus}
